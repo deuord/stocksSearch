@@ -1,54 +1,90 @@
-import { useState, useEffect, useCallback } from 'react'
-import Sidebar from './components/Sidebar'
-import StockList from './components/StockList'
-import Globe from './components/Globe'
-import { useCategories } from './hooks/useCategories'
-import { useStocks } from './hooks/useStocks'
-import type { Stock } from './types'
-import './App.css'
+import { useState, useEffect, useCallback } from "react";
+import Sidebar from "./components/Sidebar";
+import StockList from "./components/StockList";
+import Globe from "./components/Globe";
+import { useCategories } from "./hooks/useCategories";
+import { useStocks } from "./hooks/useStocks";
+import { useDerivatives } from "./hooks/useDerivatives";
+import type { Stock } from "./types";
+import "./App.css";
+
+const DERIVATIVE_IDS = new Set(["CRYPTO", "CS2", "FOREX", "INDICES"]);
 
 export default function App() {
-  const { categories, loading: catLoading } = useCategories()
-  const { stocks, loading, total, page, pages, setPage, fetchStocks } = useStocks()
+  const { categories, loading: catLoading } = useCategories();
+  const stockHook = useStocks();
+  const derivHook = useDerivatives();
 
-  const [selectedMajor, setSelectedMajor] = useState('')
-  const [selectedSub, setSelectedSub] = useState('')
-  const [sortBy, setSortBy] = useState('market_cap')
-  const [order, setOrder] = useState('desc')
-  const [activeStock, setActiveStock] = useState('')
+  const [selectedMajor, setSelectedMajor] = useState("");
+  const [selectedSub, setSelectedSub] = useState("");
+  const [sortBy, setSortBy] = useState("market_cap");
+  const [order, setOrder] = useState("desc");
+  const [activeStock, setActiveStock] = useState("");
 
-  const handleSelectMajor = useCallback((id: string) => {
-    setSelectedMajor(id)
-    setSelectedSub('')
-    setPage(1)
-    setActiveStock('')
-  }, [setPage])
+  const isDerivative = DERIVATIVE_IDS.has(selectedMajor);
 
-  const handleSelectSub = useCallback((id: string) => {
-    setSelectedSub(id)
-    setPage(1)
-    setActiveStock('')
-  }, [setPage])
+  const { stocks, loading, total, page, pages, setPage } = isDerivative
+    ? { ...derivHook, setPage: derivHook.setPage }
+    : { ...stockHook, setPage: stockHook.setPage };
 
-  const handleSortChange = useCallback((newSortBy: string, newOrder: string) => {
-    setSortBy(newSortBy)
-    setOrder(newOrder)
-    setPage(1)
-  }, [setPage])
+  const handleSelectMajor = useCallback(
+    (id: string) => {
+      setSelectedMajor(id);
+      setSelectedSub("");
+      setPage(1);
+      setActiveStock("");
+      if (DERIVATIVE_IDS.has(id)) {
+        setSortBy("price");
+      } else {
+        setSortBy("market_cap");
+      }
+    },
+    [setPage],
+  );
+
+  const handleSelectSub = useCallback(
+    (id: string) => {
+      setSelectedSub(id);
+      setPage(1);
+      setActiveStock("");
+    },
+    [setPage],
+  );
+
+  const handleSortChange = useCallback(
+    (newSortBy: string, newOrder: string) => {
+      setSortBy(newSortBy);
+      setOrder(newOrder);
+      setPage(1);
+    },
+    [setPage],
+  );
 
   const handleStockClick = useCallback((stock: Stock) => {
-    setActiveStock(prev => prev === stock.code ? '' : stock.code)
-  }, [])
+    setActiveStock((prev) => (prev === stock.code ? "" : stock.code));
+  }, []);
 
   useEffect(() => {
-    fetchStocks({
-      region: selectedMajor,
-      subCategory: selectedSub,
-      sortBy,
-      order,
-      pageSize: 50,
-    })
-  }, [selectedMajor, selectedSub, sortBy, order, page, fetchStocks])
+    if (isDerivative) {
+      derivHook.fetchDerivatives({
+        category: selectedMajor,
+        subCategory: selectedSub,
+        sortBy,
+        order,
+        pageSize: 50,
+      });
+    } else {
+      stockHook.fetchStocks({
+        region: selectedMajor,
+        subCategory: selectedSub,
+        sortBy,
+        order,
+        pageSize: 50,
+      });
+    }
+  }, [selectedMajor, selectedSub, sortBy, order, page]);
+
+  const hasSelection = selectedMajor !== "";
 
   return (
     <div className="app">
@@ -63,25 +99,29 @@ export default function App() {
           onSelectMajor={handleSelectMajor}
           onSelectSub={handleSelectSub}
           onSortChange={handleSortChange}
+          isDerivative={isDerivative}
         />
-        <StockList
-          stocks={stocks}
-          loading={loading}
-          total={total}
-          page={page}
-          pages={pages}
-          selectedMajor={selectedMajor}
-          onPageChange={(p) => setPage(p)}
-          onStockClick={handleStockClick}
-          activeStock={activeStock}
-        />
+        {hasSelection ? (
+          <StockList
+            stocks={stocks}
+            loading={loading}
+            total={total}
+            page={page}
+            pages={pages}
+            selectedMajor={selectedMajor}
+            onPageChange={(p) => setPage(p)}
+            onStockClick={handleStockClick}
+            activeStock={activeStock}
+          />
+        ) : (
+          <div className="stock-list">
+            <div className="empty-state">请选择一个市场分类查看</div>
+          </div>
+        )}
       </div>
       <div className="right-panel">
-        <Globe
-          highlightRegion={selectedMajor}
-          activeStock={activeStock}
-        />
+        <Globe highlightRegion={selectedMajor} activeStock={activeStock} />
       </div>
     </div>
-  )
+  );
 }

@@ -68,10 +68,18 @@
 
 ### 已知问题 / 待优化
 
-- [ ] 免费版API仅支持 kline 接口，缺少 snapshot（实时报价）和 reference（公司信息）
-- [ ] 股票名称暂时硬编码映射，后续可对接 reference 接口获取
+- [x] **Phase 9**: WebSocket 实时推送
+  - 后端 Hub 连接 iTick WebSocket (wss://api-free.itick.org/stock)
+  - 认证 (`Connected Successfully` → `authenticated`)
+  - 前端通过 `/ws` 连接后端 Hub
+  - 选择分类后自动订阅对应股票（`ac: subscribe, types: quote`）
+  - Hub 从 iTick 收到实时 quote 数据后广播到所有前端客户端
+  - 前端收到数据后实时更新表格中对应股票的 价格/涨跌/成交量
+  - 注：免费版 iTick WebSocket 确认支持 quote 订阅，交易时段数据正常推送
+
 - [ ] 市值数据免费版无法获取，暂显示为0
-- [ ] 分类筛选时请求较多API调用（每只股票单独请求）
+- [ ] 股票名称暂时硬编码映射，后续可对接 reference 接口获取
+- [ ] 周日/休市期间无实时数据推送（正常现象）
 
 ### 下一步计划
 

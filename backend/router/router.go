@@ -10,7 +10,7 @@ import (
 )
 
 // SetupRouter 配置路由，返回 http.Handler
-func SetupRouter(sc *controllers.StockController) http.Handler {
+func SetupRouter(sc *controllers.StockController, wsc *controllers.WSController, dc *controllers.DerivativeController) http.Handler {
 	mux := http.NewServeMux()
 
 	// 股票列表接口
@@ -47,6 +47,18 @@ func SetupRouter(sc *controllers.StockController) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// WebSocket 实时行情端点
+	mux.HandleFunc("/ws", wsc.HandleWS)
+
+	// 衍生品列表接口
+	mux.HandleFunc("/api/derivatives", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORS(w)
+			return
+		}
+		dc.GetDerivativeList(w, r)
 	})
 
 	return mux

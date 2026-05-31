@@ -19,12 +19,21 @@ func main() {
 	// 初始化服务层
 	itickService := services.NewITickService(cfg.ITick)
 	stockService := services.NewStockService(itickService)
+	derivativeService := services.NewDerivativeService(cfg.ITick)
+
+	// 初始化 WebSocket Hub
+	hub := services.NewHub(cfg.ITick.BaseURL, cfg.ITick.Token)
+	if err := hub.Run(); err != nil {
+		log.Printf("⚠️ 连接iTick WebSocket失败: %v (实时推送不可用)", err)
+	}
 
 	// 初始化控制器
 	stockController := controllers.NewStockController(stockService)
+	wsController := controllers.NewWSController(hub)
+	derivativeController := controllers.NewDerivativeController(derivativeService)
 
 	// 设置路由
-	handler := router.SetupRouter(stockController)
+	handler := router.SetupRouter(stockController, wsController, derivativeController)
 
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("🚀 全球股市情报面板启动：http://%s", addr)
